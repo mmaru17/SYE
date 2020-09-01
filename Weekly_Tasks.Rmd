@@ -1,0 +1,20 @@
+---
+title: "Weekly Things To Do"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week of August 31
+
+Here are three references to simulation we can discuss: the first is a broad introduction, the second is a video, and the third is more tutorial-style in `R`:
+
+* Overall Intro: Read up to “Tutorials” Section: <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4110976/>
+
+* Simulation 1: <https://www.coursera.org/lecture/r-programming/simulation-simulating-a-linear-model-u7in9>
+
+* Simulation 2: <https://bookdown.org/rdpeng/rprogdatascience/simulation.html>
+
+Also for this week, we should read the spatial simulation paper to discuss for next week: <https://onlinelibrary.wiley.com/doi/full/10.1034/j.1600-0587.2002.250508.x>
