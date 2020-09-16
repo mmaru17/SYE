@@ -64,6 +64,14 @@ library(MASS)
 ```
 
 
+The next step is to create a spatial covariance matrix that you can use as `Sigma` in `mvrnorm`. The easiest one to work with is exponential:
+
+$$
+psill * exp(-h / range)
+$$
+
+where $h$ is the distance between two points and psill and range are the partial sill and range (these should both be function inputs so that you can easily change them). It might help to reread one or two of the papers we discussed a couple of weeks ago to refresh on what the spatial covariance parameters are. Let me know if you have questions about this!
+
 ```{r}
 xy <- expand.grid(1:5, 1:5)
 xy
