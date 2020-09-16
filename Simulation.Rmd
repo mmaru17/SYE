@@ -71,9 +71,8 @@ names(xy) <- c('x', 'y')
 distance <- as.matrix(dist(xy, method = "euclidean"))
 distance
 n <- nrow(xy)
-phi <- 0.05
 mvrnorm? 
-## not really sure how to proceeed
+## not really sure how to proceed
 
 ```
 
