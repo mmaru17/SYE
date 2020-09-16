@@ -36,18 +36,44 @@ S = 0
 for (i in 1:1000){
   x <- rnorm(Sample)
   e <- rnorm(Sample, 0, 2) 
+  
   y <-  I+ 0*x +e
   xy.lm <- lm(y~x)
   pvalue = summary(xy.lm)$coefficient[2, 4]
-  if(0.05>=pvalue){
+  if(0.05>=pvalue){ 
+    ## store each pvalue in vector form.
     S = S+1
   }
   N = N + 1
-  
   }
 S/N
 }
 
 simulation1(100, 0.5)
+```
+
+Next Step 
+1. Simulate spatial autocorrelation
+2. Start with two tailed t-test for sample correlation. 
+3. Separate function with input:sample size, range, nuggets, partial sill
+4. covariance metrix, 
+5. MASS package, mvrnorm, grid.expand, dist
+
+```{r}
+library(MASS)
+```
+
+
+```{r}
+xy <- expand.grid(1:5, 1:5)
+xy
+names(xy) <- c('x', 'y')
+distance <- as.matrix(dist(xy, method = "euclidean"))
+distance
+n <- nrow(xy)
+phi <- 0.05
+mvrnorm? 
+## not really sure how to proceeed
+
 ```
 
