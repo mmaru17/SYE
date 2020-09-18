@@ -65,14 +65,15 @@ library(MASS)
 
 
 ```{r}
+SATsim <- function(psill, range){ 
 xy <- expand.grid(1:5, 1:5)
 xy
 names(xy) <- c('x', 'y')
 distance <- as.matrix(dist(xy, method = "euclidean"))
-distance
 n <- nrow(xy)
-mvrnorm? 
-## not really sure how to proceed
+SAT<- mvrnorm(10, mu = rep(0, n), Sigma = psill * exp(-distance / range))
+SAT}
+SATsim(0.05, 3)
 
 ```
 
