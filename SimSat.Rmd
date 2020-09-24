@@ -1,6 +1,8 @@
 ---
 title: "SimulationSAT"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -15,7 +17,6 @@ library(MASS)
 
 
 ```{r}
-
 xy <- expand.grid(1:5, 1:5)
 names(xy) <- c('x', 'y')
 distance <- as.matrix(dist(xy, method = "euclidean"))
@@ -31,9 +32,45 @@ eR <- rnorm(5*5, 0, 1) ## error term for response
 muR <- Beta*SAE + eR ## mu for response 
 rangeR = 2.5 ## range for response
 SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR))
-SAR
+SAR ## ggplot dataframe to make a plot 
+
+## next step wrap the entire thing into a function 
+    
+```
+
+
+
+Simplified Simulation 
+```{r}
+SAT <- function (Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =100, nrow = 5, ncol = 5){
+  N = 0 #The number of tests
+  S = 0 #The number of times when p is less than 0.05
+  pvalues<-c() # To store each pvalue from each test
+
+  for(i in 1:Nsimulation){
+    xy <- expand.grid(1:nrow, 1:ncol)
+    names(xy) <- c('x', 'y')
+    distance <- as.matrix(dist(xy, method = "euclidean"))
+    npoints <- nrow(xy)
+    D <-1:npoints ##Deterministic part (just for simplicity)
+    muE <- D ## mu for explanatory variable
+    muR <- Beta*D ## mu for response 
+    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR))
+    rho <- cor(SAR, D)
+    t<-rho*sqrt(npoints-2)/sqrt(1-rho^2) ## t stat
+    p<- (1-pt(abs(t), npoints-2))*2 ##p-value
+    if(0.05>= p){
+      S = S +1 
+    }
+    pvalues[i] = p
+    N = N+1 
+  }
+  S/N
+}
+SAT(Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =100, nrow = 5, ncol = 5)
 
 ```
+
 
 
 
