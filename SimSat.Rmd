@@ -65,9 +65,11 @@ SAT <- function (Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =100, nrow = 5,
     pvalues[i] = p
     N = N+1 
   }
-  S/N
+  output <- list(S/N, pvalues)
+  names(output) <- c("Proportion", "p-values")
+  output
 }
-SAT(Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =100, nrow = 5, ncol = 5)
+SAT(Beta=0, rangeR = 0.05, psill = 0.05, Nsimulation =100, nrow = 5, ncol = 5)
 
 ```
 
