@@ -16,27 +16,6 @@ library(MASS)
 
 
 
-```{r}
-xy <- expand.grid(1:5, 1:5)
-names(xy) <- c('x', 'y')
-distance <- as.matrix(dist(xy, method = "euclidean"))
-n <- nrow(xy) ##number of rows
-eE <- rnorm(5*5, 0, 1) ## error component for explanatory variable
-D <-0 ## just for now
-muE <- eE + D ## mu for explanatory variable
-rangeE <- 1 ## range for explanatory variable
-psill = 0.05 
-SAE <- mvrnorm(1, mu = muE, Sigma = psill * exp(-distance / rangeE)) ## SA term for explanatory variable
-Beta = 0.4
-eR <- rnorm(5*5, 0, 1) ## error term for response
-muR <- Beta*SAE + eR ## mu for response 
-rangeR = 2.5 ## range for response
-SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR))
-SAR ## ggplot dataframe to make a plot 
-
-## next step wrap the entire thing into a function 
-    
-```
 
 
 
@@ -52,7 +31,7 @@ SAT <- function (Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, 
     names(xy) <- c('x', 'y')
     distance <- as.matrix(dist(xy, method = "euclidean"))
     npoints <- nrow(xy)
-    D <-1:npoints ##Deterministic part (just for simplicity)
+    D <-xy[,1] ## x gradient
     muE <- D ## mu for explanatory variable
     muR <- Beta*D ## mu for response 
     SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 1, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
