@@ -14,28 +14,29 @@ knitr::opts_chunk$set(echo = TRUE)
 library(MASS)
 ```
 
-
-
-
-
-
 Simplified Simulation 
 ```{r}
-SAT <- function (Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5){
+SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Xgradient"){
   N = 0 #The number of tests
   S = 0 #The number of times when p is less than 0.05
   pvalues<-c() # To store each pvalue from each test
-
+  
   for(i in 1:Nsimulation){
     xy <- expand.grid(1:Nrow, 1:Ncol)
     names(xy) <- c('x', 'y')
     distance <- as.matrix(dist(xy, method = "euclidean"))
     npoints <- nrow(xy)
-    D <-xy[,1] ## x gradient
-    muE <- D ## mu for explanatory variable
-    muR <- Beta*D ## mu for response 
+    
+    #simulating explanatory values
+    D<- switch(deterministic, "Xgradient" =xy[,1], "Ygradient" = xy[,2]) # defining deterministic 
+    muE <- D ## mu for Explanatory variable
+    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 1, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
+    
+    #simulating response values
+    muR <- Beta*SAE ## mu for response 
     SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 1, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
-    rho <- cor(SAR, D)
+    
+    rho <- cor(SAR, SAE) ## Correlation between response values and explanatory values
     t<-rho*sqrt(npoints-2)/sqrt(1-rho^2) ## t stat
     p<- (1-pt(abs(t), npoints-2))*2 ##p-value
     if(0.05>= p){
@@ -48,7 +49,7 @@ SAT <- function (Beta=0, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, 
   names(output) <- c("Proportion", "p-values")
   output
 }
-SAT(Beta=0, rangeR = 0.05, psill = 0.05, Nsimulation =100, Nrow = 5, Ncol = 5)
+SAT(Beta=0.01, rangeE = 5, rangeR = 0.05, psill = 0.05, Nsimulation =100, Nrow = 5, Ncol = 5, deterministic = "Xgradient")
 
 ```
 
