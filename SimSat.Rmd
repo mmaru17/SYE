@@ -45,24 +45,28 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     pvalues[i] = p
     N = N+1 
   }
-  output <- list(S/N, pvalues)
-  names(output) <- c("Proportion", "p-values")
+  output <- list(S/N, pvalues, rangeE, rangeR)
+  names(output) <- c("Proportion", "p-values", "rangeE", "rangeR")
+  
   output
 }
-SAT(Beta=0.01, rangeE = 5, rangeR = 0.05, psill = 0.05, Nsimulation =100, Nrow = 5, Ncol = 5, deterministic = "Xgradient")
 
+
+## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
+rangeEvec = c(0.001, 1, 2) ## Variogram ranges for E
+rangeRvec = c(0.001, 1, 2) ## Variaogram ranges for R
+params <- expand.grid(rangeEvec, rangeRvec)
+names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
+
+for(i in 1:nrow(params)){
+  
+  print(c(paste("Result #",i),SAT(Beta=0, rangeE = 1, rangeR = params[i, 1], psill = params[i,2], Nsimulation =50, Nrow = 5, Ncol = 5, deterministic = "Xgradient")))
+}
 ```
 
+Questions
 
-For Upcoming Week
-
-1. Start adding other components into the equation 
-gradients x gradients as a coordinator 
-y as a coordinator
-original input for example x gradient, y gradient,use if statement inside the function. switch function for long if statements. 
-
-autocorrelation for explanatory variable 
-independent error component. diagnal matrix add the diagonal matrix into the existing sigma
+In the paper, they use range = 0 both for variables E and R. But mvrnorm function does not allow the range = 0 as it is in the denominator. Is is okay to set range = 0.0001 instead of 0?
 
 
 
