@@ -14,7 +14,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(MASS)
 ```
 
-Simplified Simulation 
 ```{r}
 SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Xgradient"){
   N = 0 #The number of tests
@@ -45,28 +44,29 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     pvalues[i] = p
     N = N+1 
   }
-  output <- list(S/N, pvalues, rangeE, rangeR)
-  names(output) <- c("Proportion", "p-values", "rangeE", "rangeR")
+  output <- list(S/N, pvalues,rangeE, rangeR)
+  names(output) <- c("Proportion", "pvalues", "rangeE", "rangeR")
   
   output
 }
 
 
 ## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
-rangeEvec = c(0.001, 1, 2) ## Variogram ranges for E
-rangeRvec = c(0.001, 1, 2) ## Variaogram ranges for R
+rangeEvec = c(0.00001, 8, 10) ## Variogram ranges for E
+rangeRvec = c(0.00001, 8, 10) ## Variaogram ranges for R
 params <- expand.grid(rangeEvec, rangeRvec)
 names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
 
 for(i in 1:nrow(params)){
   
-  print(c(paste("Result #",i),SAT(Beta=0, rangeE = 1, rangeR = params[i, 1], psill = params[i,2], Nsimulation =50, Nrow = 5, Ncol = 5, deterministic = "Xgradient")))
+  print(c(paste("Result #",i),SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.05, Nsimulation =150, Nrow = 10, Ncol = 10, deterministic = "Xgradient")))
 }
 ```
 
 Questions
 
 In the paper, they use range = 0 both for variables E and R. But mvrnorm function does not allow the range = 0 as it is in the denominator. Is is okay to set range = 0.0001 instead of 0?
+Also the paper did not really discuss the value of psill. Should I just use psill = 0.05?
 
 
 
