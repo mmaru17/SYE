@@ -28,7 +28,7 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     npoints <- nrow(xy)
     
     #simulating explanatory values
-    D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2]) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
+    D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2], "Two Zone" = c(rep(10, npoints/2),rep(2,npoints/2))) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
     
     muE <- D ## mu for Explanatory variable
     SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.04, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
@@ -61,7 +61,7 @@ names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. 
 Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
 for(i in 1:nrow(params)){
   
-  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.7, Nsimulation =500, Nrow = 10, Ncol = 10, deterministic = "XYgradient")) ## new dataframe for each function call. 
+  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.7, Nsimulation =500, Nrow = 10, Ncol = 10, deterministic = "Random")) ## new dataframe for each function call. 
   Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
 }
 
@@ -72,10 +72,6 @@ ggplot(data=Results_total, aes(x=rangeR, y=Proportion)) +
   facet_grid(. ~ rangeE)
 ```
 
-Questions
-
-In the paper, they use range = 0 both for variables E and R. But mvrnorm function does not allow the range = 0 as it is in the denominator. Is is okay to set range = 0.0001 instead of 0?
-Also the paper did not really discuss the value of psill. Should I just use psill = 0.05?
 
 
 
