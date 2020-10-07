@@ -12,10 +12,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(MASS)
+library(ggplot2)
 ```
 
 ```{r}
-SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Xgradient"){
+SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random"){
   N = 0 #The number of tests
   S = 0 #The number of times when p is less than 0.05
   pvalues<-c() # To store each pvalue from each test
@@ -27,13 +28,13 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     npoints <- nrow(xy)
     
     #simulating explanatory values
-    D<- switch(deterministic, "Xgradient" =xy[,1], "Ygradient" = xy[,2]) # defining deterministic 
+    D<- switch(deterministic, "Random" = rep(0, npoints),"Xgradient" =xy[,1], "Ygradient" = xy[,2], "XYgradient" = 1.5*xy[,1]+1.5*xy[,2]) # defining deterministic 
     muE <- D ## mu for Explanatory variable
-    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 1, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
+    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.04, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
     
     #simulating response values
     muR <- Beta*SAE ## mu for response 
-    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 1, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
+    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 0.04, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
     
     rho <- cor(SAR, SAE) ## Correlation between response values and explanatory values
     t<-rho*sqrt(npoints-2)/sqrt(1-rho^2) ## t stat
@@ -44,29 +45,36 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     pvalues[i] = p
     N = N+1 
   }
-  output <- list(S/N, pvalues,rangeE, rangeR)
-  names(output) <- c("Proportion", "pvalues", "rangeE", "rangeR")
-  
+  output <- list(S/N, rangeE, rangeR)
+  names(output) <- c("Proportion", "rangeE", "rangeR")
   output
 }
 
 
 ## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
-rangeEvec = c(0.00001, 8, 10) ## Variogram ranges for E
-rangeRvec = c(0.00001, 8, 10) ## Variaogram ranges for R
+rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
+rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
 params <- expand.grid(rangeEvec, rangeRvec)
 names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
-
+df_total<-data.frame()
 for(i in 1:nrow(params)){
   
-  print(c(paste("Result #",i),SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.05, Nsimulation =150, Nrow = 10, Ncol = 10, deterministic = "Xgradient")))
+  df <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.7, Nsimulation =500, Nrow = 10, Ncol = 10, deterministic = "XYgradient"))
+  df_total<-rbind(df, df_total)
 }
+
+# Basic line plot with points
+ggplot(data=df_total, aes(x=rangeR, y=Proportion, group=1)) +
+  geom_line()+
+  geom_point() + 
+  facet_grid(. ~ rangeE)
 ```
 
 Questions
 
 In the paper, they use range = 0 both for variables E and R. But mvrnorm function does not allow the range = 0 as it is in the denominator. Is is okay to set range = 0.0001 instead of 0?
 Also the paper did not really discuss the value of psill. Should I just use psill = 0.05?
+
 
 
 
