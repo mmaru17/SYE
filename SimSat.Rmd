@@ -28,7 +28,8 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     npoints <- nrow(xy)
     
     #simulating explanatory values
-    D<- switch(deterministic, "Random" = rep(0, npoints),"Xgradient" =xy[,1], "Ygradient" = xy[,2], "XYgradient" = 1.5*xy[,1]+1.5*xy[,2]) # defining deterministic 
+    D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2]) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
+    
     muE <- D ## mu for Explanatory variable
     SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.04, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
     
@@ -40,12 +41,12 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     t<-rho*sqrt(npoints-2)/sqrt(1-rho^2) ## t stat
     p<- (1-pt(abs(t), npoints-2))*2 ##p-value
     if(0.05>= p){
-      S = S +1 
+      S = S +1  ## if p is less than 0.05, increment S by 1
     }
-    pvalues[i] = p
-    N = N+1 
+    pvalues[i] = p ## insert new pvalue
+    N = N+1 ## increment N by 1
   }
-  output <- list(S/N, rangeE, rangeR)
+  output <- list(S/N, rangeE, rangeR) ## make a new list of error proportion, range for E, and range for R
   names(output) <- c("Proportion", "rangeE", "rangeR")
   output
 }
@@ -56,15 +57,16 @@ rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
 rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
 params <- expand.grid(rangeEvec, rangeRvec)
 names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
-df_total<-data.frame()
+
+Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
 for(i in 1:nrow(params)){
   
-  df <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.7, Nsimulation =500, Nrow = 10, Ncol = 10, deterministic = "XYgradient"))
-  df_total<-rbind(df, df_total)
+  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.7, Nsimulation =500, Nrow = 10, Ncol = 10, deterministic = "XYgradient")) ## new dataframe for each function call. 
+  Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
 }
 
-# Basic line plot with points
-ggplot(data=df_total, aes(x=rangeR, y=Proportion, group=1)) +
+# line plot of error proportion for different combinatoins of ranges for E and R
+ggplot(data=Results_total, aes(x=rangeR, y=Proportion)) +
   geom_line()+
   geom_point() + 
   facet_grid(. ~ rangeE)
