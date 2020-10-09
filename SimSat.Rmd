@@ -13,14 +13,16 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(MASS)
 library(ggplot2)
+library(dplyr)
 ```
 
+
+
 ```{r}
-SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random"){
+SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
   N = 0 #The number of tests
   S = 0 #The number of times when p is less than 0.05
-  pvalues<-c() # To store each pvalue from each test
-  
+
   for(i in 1:Nsimulation){
     xy <- expand.grid(1:Nrow, 1:Ncol)
     names(xy) <- c('x', 'y')
@@ -31,54 +33,45 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2], "Two Zone" = c(rep(10, npoints/2),rep(2,npoints/2))) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
     
     muE <- D ## mu for Explanatory variable
-    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.04, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
+    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.4, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
     
     #simulating response values
     muR <- Beta*SAE ## mu for response 
-    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 0.04, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
+    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 0.4, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
     
-    rho <- cor(SAR, SAE) ## Correlation between response values and explanatory values
-    t<-rho*sqrt(npoints-2)/sqrt(1-rho^2) ## t stat
-    p<- (1-pt(abs(t), npoints-2))*2 ##p-value
+    sampleSAE = sample_n(data.frame(SAE), size = Nsample, replace = FALSE)
+    
+    sampleSAR = data.frame(SAR)[row.names(sampleSAE),]
+
+    rho <- cor(sampleSAE, sampleSAR) ## Correlation between response values and explanatory values
+    t<-rho*sqrt(Nsample-2)/sqrt(1-rho^2) ## t stat
+    p<- (1-pt(abs(t), Nsample-2))*2 ##p-value
     if(0.05>= p){
       S = S +1  ## if p is less than 0.05, increment S by 1
     }
-    pvalues[i] = p ## insert new pvalue
     N = N+1 ## increment N by 1
   }
   output <- list(S/N, rangeE, rangeR) ## make a new list of error proportion, range for E, and range for R
   names(output) <- c("Proportion", "rangeE", "rangeR")
   output
 }
-
-
 ## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
 rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
 rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
 params <- expand.grid(rangeEvec, rangeRvec)
 names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
-
 Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
 for(i in 1:nrow(params)){
   
-  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.7, Nsimulation =500, Nrow = 10, Ncol = 10, deterministic = "Random")) ## new dataframe for each function call. 
+  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 15, Ncol = 15, deterministic = "Random", Nsample = 100)) ## new dataframe for each function call. 
   Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
+  print(i)
 }
-
 # line plot of error proportion for different combinatoins of ranges for E and R
 ggplot(data=Results_total, aes(x=rangeR, y=Proportion)) +
   geom_line()+
   geom_point() + 
   facet_grid(. ~ rangeE)
+
 ```
-
-
-
-
-
-
-
-
-
-
 
