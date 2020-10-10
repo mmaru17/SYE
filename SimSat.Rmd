@@ -19,7 +19,7 @@ library(dplyr)
 
 
 ```{r}
-SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
+SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50, SampleDesign = "Random"){
   N = 0 #The number of tests
   S = 0 #The number of times when p is less than 0.05
 
@@ -39,10 +39,18 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     muR <- Beta*SAE ## mu for response 
     SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 0.4, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
     
-    sampleSAE = sample_n(data.frame(SAE), size = Nsample, replace = FALSE)
-    
-    sampleSAR = data.frame(SAR)[row.names(sampleSAE),]
-
+    if(SampleDesign == "Random"){
+      # Random sampling design
+      # Randomly select samples from SAE dataframe
+      # Then sample from SAR at the same index
+      sampleSAE = sample_n(data.frame(SAE), size = Nsample, replace = FALSE)
+      sampleSAR = data.frame(SAR)[row.names(sampleSAE),]
+      
+    }else if(SampleDesign=="Systematic"){
+      # Sample every 2nd value for now for now assuming Nsample = 50
+      sampleSAE = SAE[seq(1, length(SAE), 2)]
+      sampleSAR = SAR[seq(1, length(SAR), 2)]
+      }
     rho <- cor(sampleSAE, sampleSAR) ## Correlation between response values and explanatory values
     t<-rho*sqrt(Nsample-2)/sqrt(1-rho^2) ## t stat
     p<- (1-pt(abs(t), Nsample-2))*2 ##p-value
@@ -63,7 +71,7 @@ names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. 
 Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
 for(i in 1:nrow(params)){
   
-  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 15, Ncol = 15, deterministic = "Random", Nsample = 100)) ## new dataframe for each function call. 
+  Result <-data.frame(SAT(Beta=0.3, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 10, Ncol =10, deterministic = "XYgradient", Nsample = 50, SampleDesign = "Systematic")) ## new dataframe for each function call. 
   Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
   print(i)
 }
@@ -74,4 +82,7 @@ ggplot(data=Results_total, aes(x=rangeR, y=Proportion)) +
   facet_grid(. ~ rangeE)
 
 ```
+
+
+
 
