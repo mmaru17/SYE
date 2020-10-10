@@ -18,11 +18,11 @@ library(dplyr)
 
 
 
+
 ```{r}
 SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50, SampleDesign = "Random"){
   N = 0 #The number of tests
   S = 0 #The number of times when p is less than 0.05
-
   for(i in 1:Nsimulation){
     xy <- expand.grid(1:Nrow, 1:Ncol)
     names(xy) <- c('x', 'y')
@@ -50,38 +50,58 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
       # Sample every 2nd value for now for now assuming Nsample = 50
       sampleSAE = SAE[seq(1, length(SAE), 2)]
       sampleSAR = SAR[seq(1, length(SAR), 2)]
-      }
+    }
+      
+    
     rho <- cor(sampleSAE, sampleSAR) ## Correlation between response values and explanatory values
     t<-rho*sqrt(Nsample-2)/sqrt(1-rho^2) ## t stat
     p<- (1-pt(abs(t), Nsample-2))*2 ##p-value
     if(0.05>= p){
       S = S +1  ## if p is less than 0.05, increment S by 1
     }
-    N = N+1 ## increment N by 1
+    N =N+1 ## increment N by 1
   }
-  output <- list(S/N, rangeE, rangeR) ## make a new list of error proportion, range for E, and range for R
-  names(output) <- c("Proportion", "rangeE", "rangeR")
+  
+  output <- list(S/N, rangeE, rangeR, SampleDesign) ## make a new list of error proportion, range for E, and range for R
+  names(output) <- c("Proportion", "rangeE", "rangeR", "Sample Design")
   output
 }
 ## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
 rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
 rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
-params <- expand.grid(rangeEvec, rangeRvec)
-names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
+SampleDesignvec = c("Random", "Systematic")
+
+params <- expand.grid(rangeEvec, rangeRvec, SampleDesignvec)
+
+names(params) <- c('rangeE', 'rangeR', 'Sample Design') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
 Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
+
+
+
 for(i in 1:nrow(params)){
   
-  Result <-data.frame(SAT(Beta=0.3, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 10, Ncol =10, deterministic = "XYgradient", Nsample = 50, SampleDesign = "Systematic")) ## new dataframe for each function call. 
+  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 10, Ncol =10, deterministic = "XYgradient", Nsample = 50, SampleDesign = params[i,3])) ## new dataframe for each function call. 
   Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
   print(i)
 }
+
+
 # line plot of error proportion for different combinatoins of ranges for E and R
-ggplot(data=Results_total, aes(x=rangeR, y=Proportion)) +
-  geom_line()+
+ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group= Sample.Design)) +
+  geom_line(aes(linetype=Sample.Design))+
+  scale_linetype_manual(values=c("twodash", "dotted"))+
   geom_point() + 
   facet_grid(. ~ rangeE)
-
 ```
+
+
+
+
+
+
+
+
+
 
 
 
