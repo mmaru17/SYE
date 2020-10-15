@@ -5,6 +5,9 @@ output:
   html_document: default
 ---
 
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -16,6 +19,139 @@ library(ggplot2)
 library(dplyr)
 ```
 
+Comment on the update: In order to reduce the time it takes to complete the simulation, I modified the code so that you apply different sampling methods on the same generated data points. Previously I generated a new data for each sampling methods and I found it redundant. 
+
+```{r}
+SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
+  Random_N = 0 #The number of tests
+  Random_S = 0 #The number of times when p is less than 0.05
+  Systematic_N = 0
+  Systematic_S = 0
+  Vertical_N = 0
+  Vertical_S = 0
+  TwoVertical_N = 0
+  TwoVertical_S = 0
+  
+  
+  for(i in 1:Nsimulation){
+    xy <- expand.grid(1:Nrow, 1:Ncol)
+    names(xy) <- c('x', 'y')
+    distance <- as.matrix(dist(xy, method = "euclidean"))
+    npoints <- nrow(xy)
+    
+    #simulating explanatory values
+    D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2], "Two Zone" = c(rep(10, npoints/2),rep(2,npoints/2))) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
+    
+    muE <- D ## mu for Explanatory variable
+    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.4, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
+    
+    #simulating response values
+    muR <- Beta*SAE ## mu for response 
+    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-distance / rangeR)+diag(x = 0.4, nrow =Nrow*Ncol, ncol = Nrow*Ncol ))
+    
+    
+    ## Random samling method
+    Random_sampleSAE = sample_n(data.frame(SAE), size = Nsample, replace = FALSE)
+    Random_sampleSAR = data.frame(SAR)[row.names(Random_sampleSAE),]
+    Systematic_sampleSAE = SAE[seq(1, length(SAE), npoints/Nsample)]
+    Systematic_sampleSAR = SAR[seq(1, length(SAR), npoints/Nsample)]
+    
+    Random_rho <- cor(Random_sampleSAE, Random_sampleSAR) ## Correlation between response values and explanatory values
+    Random_t<-Random_rho*sqrt(Nsample-2)/sqrt(1-Random_rho^2) ## t stat
+    Random_p<- (1-pt(abs(Random_t), Nsample-2))*2 ##p-value
+    if(0.05>= Random_p){
+      Random_S = Random_S +1  ## if p is less than 0.05, increment S by 1
+    }
+    
+    Random_N =Random_N+1 ## increment N by 1
+    
+    
+    # Systematic sampling 
+    Systematic_rho <- cor(Systematic_sampleSAE, Systematic_sampleSAR) ## Correlation between response values and explanatory values
+    Systematic_t<-Systematic_rho*sqrt(Nsample-2)/sqrt(1-Systematic_rho^2) ## t stat
+    Systematic_p<- (1-pt(abs(Systematic_t), Nsample-2))*2 ##p-value
+    if(0.05>= Systematic_p){
+      Systematic_S = Systematic_S +1  ## if p is less than 0.05, increment S by 1
+    }
+    Systematic_N =Systematic_N+1 
+    
+    
+    ## Vertical sampling
+    ## Randomly choosing a column for sampling
+    col <- sample(1:Ncol, 1)
+    start <- Nrow*col-Nrow+1 ## starting index
+    last <- Nrow*col ## ending index
+    # Interval of 2, sampling every other point
+    
+    Vertical_sampleSAE <- SAE[start:last][seq(1, length(SAE[start:last]), 2)]
+    Vertical_sampleSAR  <- SAR[start:last][seq(1, length(SAR[start:last]), 2)]
+    
+    Vertical_Nsample <- Ncol/2
+    
+    Vertical_rho <- cor(Vertical_sampleSAE, Vertical_sampleSAR) ## Correlation between response values and explanatory values
+    Vertical_t<-Vertical_rho*sqrt(Vertical_Nsample-2)/sqrt(1-Vertical_rho^2) ## t stat
+    Vertical_p<- (1-pt(abs(Vertical_t), Vertical_Nsample-2))*2 ##p-value
+    if(0.05>= Vertical_p){
+      Vertical_S = Vertical_S +1  ## if p is less than 0.05, increment S by 1
+    }
+    Vertical_N =Vertical_N+1 
+    
+    
+    ## Vertical sampling with two different intervals
+    TwoVertical_sampleSAE <- head(SAE[start:last][-seq(0, length(SAE), 3)], Ncol/2)
+    
+    TwoVertical_sampleSAR <- head(SAR[start:last][-seq(0, length(SAR), 3)], Ncol/2)
+    
+    TwoVertical_Nsample <- Ncol/2
+    
+    TwoVertical_rho <- cor(TwoVertical_sampleSAE, TwoVertical_sampleSAR) ## Correlation between response values and explanatory values
+    TwoVertical_t<-TwoVertical_rho*sqrt(TwoVertical_Nsample-2)/sqrt(1-TwoVertical_rho^2) ## t stat
+    TwoVertical_p<- (1-pt(abs(TwoVertical_t), TwoVertical_Nsample-2))*2 ##p-value
+    if(0.05>= TwoVertical_p){
+      TwoVertical_S = TwoVertical_S +1  ## if p is less than 0.05, increment S by 1
+    }
+    TwoVertical_N =TwoVertical_N+1 
+    
+    
+  }
+  
+  
+  
+  output <- list(Random_S/Random_N,Systematic_S/Systematic_N,Vertical_S/Vertical_N ,TwoVertical_S/TwoVertical_N , rangeE, rangeR)
+  names(output) <- c("Random_Sampling","Systematic_Sampling", "Vertical_Sampling","TwoVertical_Sampling" ,"rangeE", "rangeR")
+  output
+}
+
+
+
+
+## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
+rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
+rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
+
+params <- expand.grid(rangeEvec, rangeRvec)
+
+names(params) <- c('rangeE', 'rangeR') ## All combinations of variogram ranges. For the future, we are going to add sampling designs in the params vectors. 
+Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
+
+
+
+for(i in 1:nrow(params)){
+  
+  Result <-data.frame(SAT1(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =250, Nrow = 16, Ncol =16, deterministic = "XYgradient", Nsample = 100)) ## new dataframe for each function call. 
+  Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
+  print(i)
+}
+
+ggplot() + 
+  geom_line(data = Results_total, aes(x = rangeR, y = Random_Sampling), color = "blue") +
+  geom_line(data = Results_total, aes(x = rangeR, y = Systematic_Sampling), color = "red") +
+  geom_line(data = Results_total, aes(x = rangeR, y = Vertical_Sampling), color = "yellow") +
+  geom_line(data = Results_total, aes(x = rangeR, y = TwoVertical_Sampling), color = "green") +
+  xlab('Proportion') +
+  ylab('RangeR')+
+  facet_grid(. ~ rangeE)
+```
 
 
 
@@ -48,9 +184,17 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
       
     }else if(SampleDesign=="Systematic"){
       # Sample every 2nd value for now for now assuming Nsample = 50
-      sampleSAE = SAE[seq(1, length(SAE), 2)]
-      sampleSAR = SAR[seq(1, length(SAR), 2)]
-    }
+      sampleSAE = SAE[seq(1, length(SAE), npoints/Nsample)]
+      sampleSAR = SAR[seq(1, length(SAR), npoints/Nsample)]
+    }else if(SampleDesign == "Vertical"){
+      n <- sample(1:Ncol, 1)
+      
+      first <- Nrow*n-Nrow+1
+      last <- Nrow*n
+      sampleSAE <- SAE[first:last][seq(1, length(SAE[first:last]), 2)]
+      sampleSAR  <- SAR[first:last][seq(1, length(SAR[first:last]), 2)]
+      Nsample <- Ncol/2
+      }
       
     
     rho <- cor(sampleSAE, sampleSAR) ## Correlation between response values and explanatory values
@@ -69,7 +213,7 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
 ## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
 rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
 rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
-SampleDesignvec = c("Random", "Systematic")
+SampleDesignvec = c("Vertical")
 
 params <- expand.grid(rangeEvec, rangeRvec, SampleDesignvec)
 
@@ -80,7 +224,7 @@ Results_total<-data.frame()## empty dataframe. Use this dataframe to add proport
 
 for(i in 1:nrow(params)){
   
-  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 10, Ncol =10, deterministic = "XYgradient", Nsample = 50, SampleDesign = params[i,3])) ## new dataframe for each function call. 
+  Result <-data.frame(SAT(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 20, Ncol =20, deterministic = "Random", Nsample = 10, SampleDesign = params[i,3])) ## new dataframe for each function call. 
   Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
   print(i)
 }
@@ -89,7 +233,7 @@ for(i in 1:nrow(params)){
 # line plot of error proportion for different combinatoins of ranges for E and R
 ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group= Sample.Design)) +
   geom_line(aes(linetype=Sample.Design))+
-  scale_linetype_manual(values=c("twodash", "dotted"))+
+  scale_linetype_manual(values=c("twodash", "dotted", "solid"))+
   geom_point() + 
   facet_grid(. ~ rangeE)
 ```
@@ -97,6 +241,11 @@ ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group= Sample.Design)) +
 
 
 
+```{r}
+SAE = rep(0, 100*100)
+
+length(SAE[seq(1, length(SAE), length(SAE)/100)])
+```
 
 
 
