@@ -21,29 +21,43 @@ library(tidyr)
 library(SpatialPack)
 ```
 
-Comment on the update: In order to reduce the time it takes to complete the simulation, I modified the code so that you apply different sampling methods on the same generated data points. Previously I generated a new data for each sampling methods and I found it redundant. 
+
 
 ```{r}
 SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
   Random_N = 0 #The number of tests
-  Random_S = 0 #The number of times when p is less than 0.05
-  Systematic_N = 0
-  Systematic_S = 0
-  Vertical_N = 0
+  Random_S = 0 #The number of (successes) times when p is less than 0.05
+  Systematic_N = 0 # The number of tests for systematic
+  Systematic_S = 0 # The number of successes for systematic
+  Vertical_N = 0 # For vertical
   Vertical_S = 0
-  TwoVertical_N = 0
+  TwoVertical_N = 0 # For vertical with two intervals
   TwoVertical_S = 0
+  Stratified_S = 0 # For vertical stratified sampling
+  Stratified_N = 0
+  xy <- expand.grid(1:Nrow, 1:Ncol) # generating points grids
+  names(xy) <- c('x', 'y')
+  distance <- as.matrix(dist(xy, method = "euclidean"))
+  npoints <- nrow(xy)
   
+  # For stratified sampling, we have right part of xy 
+  right_xy <- xy[xy$x<Nrow/2+1,]
+  right_names <- rownames(right_xy)
+  # Left part of xy for vertical stratified sampling
+  left_xy <- xy[xy$x>Nrow/2,]
+  left_names <- rownames(left_xy)
+  
+  #simulating explanatory values
+    D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2], "Two Zone" = c(rep(10, npoints/2),rep(2,npoints/2))) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
+ 
+  
+    
+ 
   
   for(i in 1:Nsimulation){
-    xy <- expand.grid(1:Nrow, 1:Ncol)
-    names(xy) <- c('x', 'y')
-    distance <- as.matrix(dist(xy, method = "euclidean"))
-    npoints <- nrow(xy)
     
-    #simulating explanatory values
-    D<- switch(deterministic, "Random" = rep(0, npoints),"XYgradient" = 1.5*xy[,1]+1.5*xy[,2], "Two Zone" = c(rep(10, npoints/2),rep(2,npoints/2))) # defining deterministic. Random means there is no deterministic. XYgradient is linear gradients from north to south and from west to east. 
     
+
     muE <- D ## mu for Explanatory variable
     SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-distance/rangeE)+diag(x = 0.4, nrow=Nrow*Ncol, ncol = Nrow*Ncol)) # simulating data for explanatory variable 
     
@@ -114,13 +128,36 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
     }
     TwoVertical_N =TwoVertical_N+1 
     
+    # Vertical Stratified sampling 
+    # Randomly sample from right part of xy 
+    sample_right <-sample_n(as.data.frame(right_names), size = Nsample/2)
+    # Randomly sample from left part of xy 
+    sample_left <-sample_n(as.data.frame(left_names), size = Nsample/2)
+    
+    sample_right <- unname(sample_right)
+    sample_left <-unname(sample_left)
+    names(sample_right) <-"Position"
+    names(sample_left) <-"Position"
+    # combine the randomly selected by rows
+    right_left <- rbind(sample_right, sample_left)
+    
+    Stratified_SAE <-SAE[right_left[,1]]
+    Stratified_SAR <- SAR[right_left[,1]]
+
+    Stratified_rho <- cor(Stratified_SAE, Stratified_SAR) ## Correlation between response values and explanatory values
+    Stratified_t<-Stratified_rho*sqrt(Nsample-2)/sqrt(1-Stratified_rho^2) ## t stat
+    Stratified_p<- (1-pt(abs(Stratified_t), Nsample-2))*2
+    
+    if(0.05>= Stratified_p){
+      Stratified_S = Stratified_S +1  ## if p is less than 0.05, increment S by 1
+    }
+    Stratified_N =Stratified_N+1 
     
   }
   
   
-  
-  output <- list(Random_S/Random_N,Systematic_S/Systematic_N,Vertical_S/Vertical_N ,TwoVertical_S/TwoVertical_N , rangeE, rangeR)
-  names(output) <- c("Sampling_Random","Sampling_Systematic", "Sampling_Vertical","Sampling_TwoVertical" ,"rangeE", "rangeR")
+  output <- list(Random_S/Random_N,Systematic_S/Systematic_N,Vertical_S/Vertical_N ,TwoVertical_S/TwoVertical_N , Stratified_S/Stratified_N,rangeE, rangeR)
+  names(output) <- c("Sampling_Random","Sampling_Systematic", "Sampling_Vertical","Sampling_TwoVertical" , "Sampling_Stratified","rangeE", "rangeR")
   output
 }
 
@@ -138,7 +175,7 @@ Results_total<-data.frame()## empty dataframe. Use this dataframe to add proport
 
 for(i in 1:nrow(params)){
   
-  Result <-data.frame(SAT1(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =500, Nrow = 10, Ncol =10, deterministic = "Random", Nsample = 100)) ## new dataframe for each function call. 
+  Result <-data.frame(SAT1(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], psill = 0.3, Nsimulation =250, Nrow = 16, Ncol =16, deterministic = "Random", Nsample = 100)) ## new dataframe for each function call. 
   Results_total<-rbind(Result, Results_total)## Add new dataframe to total results
   print(i)
 }
@@ -153,27 +190,12 @@ Results_total<-
     values_drop_na = TRUE
   )
 
-ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group=Sampling)) +
+ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group=Sampling,color = Sampling)) +
   geom_line(aes(linetype=Sampling))+
   geom_point()+
   facet_grid(. ~ rangeE)
 
-
 ```
-
-
-```{r}
-install.packages("SpatialPack")
-install.packages("Rtools")
-install.Rtools()
-install.packages("installr")
-library(installr)
-
-summary(SpatialPack::modified.ttest(SAE, SAR, xy))$p.value
-
-```
-
-
 
 
 
