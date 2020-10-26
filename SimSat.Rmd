@@ -107,6 +107,11 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
     Random_coords <- xy[c(rownames(Random_sampleSAE)),]
     Modified_Random_p <- modified.ttest(Random_sampleSAE[,1], 
                                         Random_sampleSAR, Random_coords)$p.value
+    
+    if(is.na(Modified_Random_p)){
+      Modified_Random_p <- 0.07
+    }
+    
     # Modified t test for Random sampling 
     if(0.05>= Modified_Random_p){
       ModifiedRandom_S = ModifiedRandom_S+1
@@ -136,6 +141,10 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
     Modified_Systematic_p <- modified.ttest(Systematic_sampleSAE, 
                                             Systematic_sampleSAR, 
                                             Systematic_coords)$p.value
+    
+    if(is.na(Modified_Systematic_p)){
+      Modified_Systematic_p <- 0.07
+    }
     
     if(Modified_Systematic_p <= 0.05){
       ModifiedSystematic_S = ModifiedSystematic_S+1
@@ -173,7 +182,11 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
     ModifiedVertical_p <- modified.ttest(Vertical_sampleSAE, 
                                          Vertical_sampleSAR, 
                                          Vertical_coords)$p.value
-    
+    # In order to get rid of NaN 
+    # replace with 0.07
+    if(is.na(ModifiedVertical_p)){
+      ModifiedVertical_p <- 0.07
+    }
     if(0.05>= ModifiedVertical_p){
       ModifiedVertical_S = ModifiedVertical_S +1  
     }
@@ -203,6 +216,11 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
     ModifiedTwoVertical_p <- modified.ttest(TwoVertical_sampleSAE, 
                                             TwoVertical_sampleSAR,
                                             TwoVertical_coords)$p.value
+    # In order to not get the error NA
+    # replace the value with 0.07
+    if(is.na(ModifiedTwoVertical_p)){
+      ModifiedTwoVertical_p <- 0.07
+    }
     if(0.05>= ModifiedTwoVertical_p){
       ModifiedTwoVertical_S =ModifiedTwoVertical_S+1
     }
@@ -243,6 +261,7 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
       
     }
     ModifiedStratified_N = ModifiedStratified_N+1 
+    print(i)
     
   }
   
@@ -278,8 +297,8 @@ SAT1 <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation 
 SAT1(Beta=0, rangeE = 15, rangeR = 15, psill = 0.3, Nsimulation =100, Nrow = 30, Ncol =30, deterministic = "Random", Nsample = 100)
 
 ## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50. 
-rangeEvec = c(0.0000001, 3, 5) ## Variogram ranges for E
-rangeRvec = c(0.0000001, 3, 5) ## Variaogram ranges for R
+rangeEvec = c(0.0000001, 6, 13) ## Variogram ranges for E
+rangeRvec = c(0.0000001, 6, 13) ## Variaogram ranges for R
 params <- expand.grid(rangeEvec, rangeRvec)
 # All combinations of variogram ranges. 
 # For the future, we are going to add sampling designs in the params vectors. 
@@ -287,9 +306,15 @@ names(params) <- c('rangeE', 'rangeR')
 Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later. 
 for(i in 1:nrow(params)){
   ## new dataframe for each function call.
-  Result <-data.frame(SAT1(Beta=0, rangeE = params[i, 1], rangeR = params[i, 2], 
-                           psill = 0.3, Nsimulation =250, Nrow = 26, Ncol =26, 
-                           deterministic = "Random", Nsample = 100))  
+  Result <-data.frame(SAT1(Beta=0, 
+                           rangeE = params[i, 1], 
+                           rangeR = params[i, 2], 
+                           psill = 0.3, 
+                           Nsimulation =250, 
+                           Nrow = 34, 
+                           Ncol =34, 
+                           deterministic = "Random", 
+                           Nsample = 100))  
   ## Add new dataframe to total results
   Results_total<-rbind(Result, Results_total)
   print(i)
