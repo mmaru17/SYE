@@ -16,3 +16,10 @@ The rate of type 1 error is inflated when autocorrelation is present in both var
 Power:
 
 Power does not change depending on the samplin design. For random, systematic, and stratified sampling, the power stayed around 0.8. While the power is around 0.2 for vertical and two vertical sampling design. I am guessig this difference is due to the sampling size (100 for random, systematic, and stratified, 17 for vertical and two vertical). In most of the cases, unmodified t-test has higher power compared to the power calculated by the modified t test. This is also in accord with the paper. The author explains that the greater power of the unmodified t-test is due to the increase in rate of type 1 error. When the unmodified t-test has the correct rate of type 1 error, the power is about the same as the modified t-test. The presence of SA in response seems to reduce the power. 
+
+
+Second Simulation 
+Setting: Deterministic = 0 (Two Zone), Beta = 0, Nsimulation = 250, Nrow = 34, Ncol = 34, Nsample = 100, rangeE = ( 0.000001, 6, 13), rangeR = ( 0.000001, 6, 13)
+
+Type 1 error:
+When there is SA in response variable, the proportion of erro increases. The proportion of error reaches about 0.4 when when range is 13 and it does not depend on SA from explanatory variable and sampling designs (Random, Systematic, Stratified). Modified t-test successfully corrects the proportion of error. For vertical, and two vertical sampling design, it shows the similar trend of inflated proportion of error in the presence of SA in response, but not as obvious as random, systematic and stratifid sampling. I am guessing we need more samples for those sampling 
