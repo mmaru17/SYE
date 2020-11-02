@@ -18,24 +18,16 @@ install.packages(SpatialPack)
 ```
 ```{r}
 SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
-  #The number of simulations for counting purposes
+  # store pvalues from each sampling design
   Random_pvalues = c()
-
   ModifiedRandom_pvalues = c()
- 
- 
   Systematic_pvalues = c()
   ModifiedSystematic_pvalues =c()
-
-  Vertical_pvalues = c() # For vertical
-
+  Vertical_pvalues = c() 
   ModifiedVertical_pvalues  =c()
-
   TwoVertical_pvalues  = c()
   ModifiedTwoVertical_pvalues  = c()
- 
   Stratified_pvalues  = c()
- 
   ModifiedStratified_pvalues  = c()
    
  
@@ -82,6 +74,7 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
     Random_t<-Random_rho*sqrt(Nsample-2)/sqrt(1-Random_rho^2) ## t stat
     Random_p<- (1-pt(abs(Random_t), Nsample-2))*2 ##p-value
    
+    # store the pvalue
     Random_pvalues[i] <-Random_p
    
     # XY coordinates for Random Modified t-test
@@ -196,7 +189,7 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
    
   }
  
- 
+  # list of lists of p-values from each sampling desgin
   output <- list(Random_pvalues,
                  ModifiedRandom_pvalues,
                  Systematic_pvalues,
@@ -209,7 +202,7 @@ SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =
                  ModifiedStratified_pvalues,
                  rangeE,
                  rangeR)
- 
+  # name the sampling design
   names(output) <- c("Sampling_Random",
                      "Sampling_Modified_Random",
                      "Sampling_Systematic",
@@ -245,6 +238,8 @@ for(i in 1:nrow(params)){
                 Ncol =14,
                 deterministic = "Random",
                 Nsample = 100)
+  # create a dataframe that contains proportoin of errors or 
+  # powers(when beta is not 0) from each sampling design
   Results <- data.frame(length(which(Result$Sampling_Random <0.05))/length(Result$Sampling_Random),
                         length(which(Result$Sampling_Modified_Random<0.05))/length(which(!is.na(Result$Sampling_Modified_Random))),
                         length(which(Result$Sampling_Systematic <0.05))/length(Result$Sampling_Systematic),
@@ -263,6 +258,7 @@ for(i in 1:nrow(params)){
   print(i)
 }
 
+# name the data frame
 names(Results_total)[1] <- "Sampling_Random"
 names(Results_total)[2] <- "Sampling_Modified_Random"
 names(Results_total)[3] <- "Sampling_Systematic"
