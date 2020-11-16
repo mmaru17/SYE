@@ -16,6 +16,7 @@ library(tidyr)
 library(SpatialPack)
 install.packages(SpatialPack)
 ```
+
 ```{r}
 SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
   # store pvalues from each sampling design
@@ -233,10 +234,10 @@ for(i in 1:nrow(params)){
                 rangeE = params[i, 1],
                 rangeR = params[i, 2],
                 psill = 0.3,
-                Nsimulation =500,
+                Nsimulation =300,
                 Nrow = 14,
                 Ncol =14,
-                deterministic = "Random",
+                deterministic = "Two Zone",
                 Nsample = 100)
   # create a dataframe that contains proportoin of errors or 
   # powers(when beta is not 0) from each sampling design
@@ -245,7 +246,7 @@ for(i in 1:nrow(params)){
                         length(which(Result$Sampling_Systematic <0.05))/length(Result$Sampling_Systematic),
                         length(which(Result$Sampling_Modified_Systematic<0.05))/length(which(!is.na(Result$Sampling_Modified_Systematic))),
                         length(which(Result$Sampling_Stratified <0.05))/length(Result$Sampling_Stratified),
-                        length(which(Result$Sampling_Stratified <0.05))/length(which(!is.na(Result$Sampling_Stratified))),
+                        length(which(Result$Sampling_ModifiedStratified <0.05))/length(which(!is.na(Result$Sampling_ModifiedStratified))),
                         length(which(Result$Sampling_Vertical <0.05))/length(Result$Sampling_Vertical),
                         length(which(Result$Sampling_Modified_Vertical <0.05))/length(which(!is.na(Result$Sampling_Modified_Vertical))),
                         length(which(Result$Sampling_TwoVertical <0.05))/length(Result$Sampling_TwoVertical),
@@ -282,6 +283,10 @@ Results_total<-
     values_to = "Proportion",
     values_drop_na = TRUE
   )
+
+Proportion <- (SimSat1$Proportion+SimSat2$Proportion)/2
+SimSat2$Proportion <- Proportion
+
 ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group=Sampling,color = Sampling)) +
   geom_line(aes(linetype=Sampling))+
   geom_point()+
