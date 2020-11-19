@@ -1,0 +1,383 @@
+---
+title: "SelectedSimSat"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(MASS)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(SpatialPack)
+# install.packages(SpatialPack)
+```
+
+```{r}
+SAT <- function (Beta=0, rangeE = 1.5, rangeR = 2.5, psill = 0.05, Nsimulation =10, Nrow = 5, Ncol = 5, deterministic = "Random", Nsample =50){
+  # store pvalues from each sampling design
+  Random_pvalues = c()
+  ModifiedRandom_pvalues = c()
+  Systematic_pvalues = c()
+  ModifiedSystematic_pvalues =c()
+  Vertical_pvalues = c() 
+  ModifiedVertical_pvalues  =c()
+  TwoVertical_pvalues  = c()
+  ModifiedTwoVertical_pvalues  = c()
+  Stratified_pvalues  = c()
+  ModifiedStratified_pvalues  = c()
+   
+ 
+  # generating points grids
+  xy <- expand.grid(1:Nrow, 1:Ncol)
+  names(xy) <- c('x', 'y')
+  distance <- as.matrix(dist(xy, method = "euclidean"))
+  npoints <- nrow(xy)
+ 
+  # For vertical stratified sampling, this is the right part of xy
+  right_xy <- xy[xy$x<Nrow/2+1,]
+  right_names <- rownames(right_xy)
+  # Left part of xy for vertical stratified sampling
+  left_xy <- xy[xy$x>Nrow/2,]
+  left_names <- rownames(left_xy)
+ 
+  
+ 
+ 
+  for(i in 1:Nsimulation){
+   
+   
+    RandomSites <- sample_n(data.frame(rownames(xy)), size = 100, replace = FALSE)
+    names(RandomSites) <- "chosen sites"
+    Selectdistance <- distance[, RandomSites$`chosen sites`]
+    Selectdistance <- Selectdistance[RandomSites$`chosen sites`, ]
+    
+    # For two zone 
+    Random_Two <- as.numeric(RandomSites$`chosen sites`)
+    Random_Two[Random_Two< npoints/2] <- 10 
+    Random_Two[Random_Two> npoints/2] <- 2
+
+    
+    # simulating explanatory valuesF
+    # defining deterministic. Random means there is no deterministic.
+    # XYgradient is linear gradients from north to south and from west to east.
+
+    D<- switch(deterministic, "Random" = rep(0, 100),
+               "XYgradient" = 1.5*xy[RandomSites$`chosen sites`,][,1]+1.5*xy[RandomSites$`chosen sites`,][,2], 
+               "Two Zone" = Random_Two)
+    
+    
+    muE <- D ## mu for Explanatory variable
+    # Simulating data for explanatory variable
+    SAE <- mvrnorm(1, mu = muE, Sigma = psill*exp(-Selectdistance/rangeE)+
+                     diag(x = 0.4, nrow=100, ncol = 100))  
+    
+    #simulating response values
+    muR <- Beta*SAE ## mu for response 
+    SAR<- mvrnorm(1, mu = muR, Sigma = psill * exp(-Selectdistance / rangeR)+
+                    diag(x = 0.4, nrow =100, ncol = 100 ))
+  
+    
+    ## Correlation between response values and explanatory values
+    Random_rho <- cor(SAE, SAR) 
+    Random_t<-Random_rho*sqrt(Nsample-2)/sqrt(1-Random_rho^2) ## t stat
+    Random_p<- (1-pt(abs(Random_t), Nsample-2))*2 ##p-value
+   
+    # store the pvalue
+    Random_pvalues[i] <-Random_p
+   
+    # XY coordinates for Random Modified t-test
+    Random_coords <- xy[c(names(SAE)),]
+    Modified_Random_p <- modified.ttest(SAE,
+                                        SAR, Random_coords)$p.value
+   
+    ModifiedRandom_pvalues[i] <- Modified_Random_p
+    
+    
+    
+    
+    col <- sample(1:Ncol, 1)
+    # Starting index when extracting in the column
+    
+    
+    Vertical_site <- xy[xy$x==col, ][seq(1, Nrow, 2),]
+    Vertical_Selectdistance <- distance[, rownames(Vertical_site)]
+    Vertical_Selectdistance <- Vertical_Selectdistance[rownames(Vertical_site), ]
+    
+    Vertical_Two <- as.numeric(rownames(Vertical_site))
+    Vertical_Two[Vertical_Two< npoints/2] <- 10 
+    Vertical_Two[Vertical_Two> npoints/2] <- 2
+
+    Vertical_D<- switch(deterministic, "Random" = rep(0, 50),
+               "XYgradient" = 1.2*xy[rownames(Vertical_site), ][, 1]+1.2*xy[rownames(Vertical_site), ][, 2], 
+               "Two Zone" = Vertical_Two)
+    
+    
+    Vertical_muE <- Vertical_D ## mu for Explanatory variable
+    # Simulating data for explanatory variable
+    Vertical_SAE <- mvrnorm(1, mu = Vertical_muE, Sigma = psill*exp(-Vertical_Selectdistance/rangeE)+
+                     diag(x = 0.4, nrow=50, ncol = 50))  
+    
+    #simulating response values
+    Vertical_muR <- Beta*Vertical_SAE ## mu for response 
+    Vertical_SAR<- mvrnorm(1, mu = Vertical_muR, Sigma = psill * exp(-Vertical_Selectdistance / rangeR)+
+                    diag(x = 0.4, nrow =50, ncol = 50 ))
+    
+    Vertical_rho <- cor(Vertical_SAE, Vertical_SAR) 
+    Vertical_Nsample <- Ncol/2
+    Vertical_t<-Vertical_rho*sqrt(Vertical_Nsample-2)/sqrt(1-Vertical_rho^2)
+    Vertical_p<- (1-pt(abs(Vertical_t), Vertical_Nsample-2))*2
+    
+    Vertical_pvalues[i] <-Vertical_p
+    
+    Vertical_coords <- xy[c(names(Vertical_SAE)),]
+    Modified_Vertical_p <- modified.ttest(Vertical_SAE,
+                                        Vertical_SAR, Vertical_coords)$p.value
+   
+    ModifiedVertical_pvalues[i] <- Modified_Vertical_p
+    
+    
+    # Two Vertical Sampling 
+    # Choosing the site 
+    TwoVertical_site <- head(xy[xy$x==col, ][-seq(0, Nrow, 3),], Nrow/2)
+    TwoVertical_Selectdistance <- distance[, rownames(TwoVertical_site)]
+    TwoVertical_Selectdistance <- TwoVertical_Selectdistance[rownames(TwoVertical_site), ]
+    
+    
+    TwoVertical_Two <- as.numeric(rownames(TwoVertical_site))
+    TwoVertical_Two[TwoVertical_site< npoints/2] <- 10 
+    TwoVertical_Two[TwoVertical_site> npoints/2] <- 2
+    
+    TwoVertical_D <- switch(deterministic, "Random" = rep(0, 50), 
+                            "XYgradient" = 1.2*xy[rownames(TwoVertical_site), ][,1] + 1.2*xy[rownames(TwoVertical_site), ][, 2],
+                            "Two Zone" = TwoVertical_Two)
+    
+    TwoVertical_muE <- TwoVertical_D
+    TwoVertical_SAE <- mvrnorm(1, mu = TwoVertical_muE, Sigma =psill*exp(-TwoVertical_Selectdistance/rangeE)+
+                     diag(x = 0.4, nrow=50, ncol = 50) )
+    
+    #simulating response values
+    TwoVertical_muR <- Beta*TwoVertical_SAE ## mu for response 
+    TwoVertical_SAR<- mvrnorm(1, mu = TwoVertical_muR, Sigma = psill * exp(-TwoVertical_Selectdistance / rangeR)+
+                    diag(x = 0.4, nrow =50, ncol = 50 ))
+    
+    
+    TwoVertical_rho <- cor(TwoVertical_SAE, TwoVertical_SAR) 
+    TwoVertical_Nsample <- Ncol/2
+    TwoVertical_t<-TwoVertical_rho*sqrt(TwoVertical_Nsample-2)/sqrt(1-TwoVertical_rho^2)
+    TwoVertical_p<- (1-pt(abs(TwoVertical_t), TwoVertical_Nsample-2))*2
+    
+    TwoVertical_pvalues[i] <- TwoVertical_p
+    
+    TwoVertical_coords <- xy[c(names(TwoVertical_SAE)),]
+    Modified_TwoVertical_p <- modified.ttest(TwoVertical_SAE,
+                                        TwoVertical_SAR, TwoVertical_coords)$p.value
+   
+    ModifiedTwoVertical_pvalues[i] <- Modified_TwoVertical_p
+
+
+   
+   
+    # # Systematic sampling
+    # # Sampling every other point for SAE and SAR
+    # Systematic_sampleSAE = SAE[seq(1, length(SAE), npoints/Nsample)]
+    # Systematic_sampleSAR = SAR[seq(1, length(SAR), npoints/Nsample)]
+    # 
+    # ## Correlation between response values and explanatory values
+    # Systematic_rho <- cor(Systematic_sampleSAE, Systematic_sampleSAR)
+    # Systematic_t<-Systematic_rho*sqrt(Nsample-2)/sqrt(1-Systematic_rho^2)
+    # Systematic_p<- (1-pt(abs(Systematic_t), Nsample-2))*2
+    # # Testing for Systematic Sampling
+    # Systematic_pvalues[i] <- Systematic_p
+    # 
+    # # Modified t test for Systematic
+    # # XY coordinates for Systematic modified t-test
+    # Systematic_coords <- xy[c(names(Systematic_sampleSAE)),]
+    # Modified_Systematic_p <- modified.ttest(Systematic_sampleSAE,
+    #                                         Systematic_sampleSAR,
+    #                                         Systematic_coords)$p.value
+    # ModifiedSystematic_pvalues[i] <- Modified_Systematic_p
+    # 
+    # 
+    # 
+    # 
+    # ## Vertical sampling
+    # ## Randomly choosing a column for sampling
+    # col <- sample(1:Ncol, 1)
+    # # Starting index when extracting in the column
+    # start <- Nrow*col-Nrow+1
+    # # The last index when extracting column
+    # last <- Nrow*col
+    # # Interval of 2, sampling every other point
+    # 
+    # Vertical_sampleSAE <- SAE[start:last][seq(1, length(SAE[start:last]), 2)]
+    # Vertical_sampleSAR  <- SAR[start:last][seq(1, length(SAR[start:last]), 2)]
+    # 
+    # Vertical_Nsample <- Ncol/2
+    # Vertical_rho <- cor(Vertical_sampleSAE, Vertical_sampleSAR)
+    # Vertical_t<-Vertical_rho*sqrt(Vertical_Nsample-2)/sqrt(1-Vertical_rho^2)
+    # Vertical_p<- (1-pt(abs(Vertical_t), Vertical_Nsample-2))*2
+    # 
+    # Vertical_pvalues[i] <- Vertical_p
+    # # Vertical Sampling for modified t test
+    # # XY coordinates for vertically sampled points
+    # Vertical_coords <- xy[names(Vertical_sampleSAE),]
+    # ModifiedVertical_p <- modified.ttest(Vertical_sampleSAE,
+    #                                      Vertical_sampleSAR,
+    #                                      Vertical_coords)$p.value
+    # ModifiedVertical_pvalues[i] <- ModifiedVertical_p
+    # 
+    # ## Vertical sampling with two different intervals
+    # TwoVertical_sampleSAE <- head(SAE[start:last][-seq(0, length(SAE), 3)],
+    #                               Ncol/2)
+    # TwoVertical_sampleSAR <- head(SAR[start:last][-seq(0, length(SAR), 3)],
+    #                               Ncol/2)
+    # 
+    # TwoVertical_Nsample <- Ncol/2
+    # 
+    # TwoVertical_rho <- cor(TwoVertical_sampleSAE, TwoVertical_sampleSAR)
+    # TwoVertical_t<-TwoVertical_rho*sqrt(TwoVertical_Nsample-2)/sqrt(1-TwoVertical_rho^2)
+    # TwoVertical_p<- (1-pt(abs(TwoVertical_t), TwoVertical_Nsample-2))*2
+    # 
+    # TwoVertical_pvalues[i] <- TwoVertical_p
+    # 
+    # # Modified t-test for vertically sampled points with
+    # # two intervals
+    # TwoVertical_coords <-xy[names(TwoVertical_sampleSAE), ]
+    # ModifiedTwoVertical_p <- modified.ttest(TwoVertical_sampleSAE,
+    #                                         TwoVertical_sampleSAR,
+    #                                         TwoVertical_coords)$p.value
+    # 
+    # 
+    # ModifiedTwoVertical_pvalues[i] <- ModifiedTwoVertical_p
+    # 
+    # # Vertical Stratified sampling
+    # # Randomly sample from right part of xy
+    # sample_right <-sample_n(as.data.frame(right_names), size = Nsample/2)
+    # # Randomly sample from left part of xy
+    # sample_left <-sample_n(as.data.frame(left_names), size = Nsample/2)
+    # 
+    # sample_right <- unname(sample_right)
+    # sample_left <-unname(sample_left)
+    # names(sample_right) <-"Position"
+    # names(sample_left) <-"Position"
+    # # combine the randomly selected by rows
+    # right_left <- rbind(sample_right, sample_left)
+    # 
+    # Stratified_SAE <-SAE[right_left[,1]]
+    # Stratified_SAR <- SAR[right_left[,1]]
+    # Stratified_rho <- cor(Stratified_SAE, Stratified_SAR)
+    # Stratified_t<-Stratified_rho*sqrt(Nsample-2)/sqrt(1-Stratified_rho^2)
+    # Stratified_p<- (1-pt(abs(Stratified_t), Nsample-2))*2
+    # 
+    # Stratified_pvalues[i] <- Stratified_p
+    # 
+    # # Modified t-test for vertically stratified sampling
+    # Stratified_coords <- xy[names(Stratified_SAE), ]
+    # ModifiedStratified_p <- modified.ttest(Stratified_SAE,
+    #                                        Stratified_SAR,
+    #                                        Stratified_coords)$p.value
+    # ModifiedStratified_pvalues[i] <- ModifiedStratified_p
+   
+  }
+ 
+  # list of lists of p-values from each sampling desgin
+  output <- list(Random_pvalues,
+                 ModifiedRandom_pvalues,
+                 # Systematic_pvalues,
+                 # ModifiedSystematic_pvalues,
+                 Vertical_pvalues,
+                 ModifiedVertical_pvalues,
+                 TwoVertical_pvalues,  
+                 ModifiedTwoVertical_pvalues,
+                 # Stratified_pvalues,
+                 # ModifiedStratified_pvalues,
+                 rangeE,
+                 rangeR)
+  # name the sampling design
+  names(output) <- c("Sampling_Random",
+                     "Sampling_Modified_Random",
+                     # "Sampling_Systematic",
+                     # "Sampling_Modified_Systematic",
+                     "Sampling_Vertical",
+                     "Sampling_Modified_Vertical",
+                     "Sampling_TwoVertical",  
+                     "Sampling_ModifiedTwoVertical",
+                     # "Sampling_Stratified",
+                     # "Sampling_ModifiedStratified",
+                     "rangeE",
+                     "rangeR")
+  output
+}
+## In the paper, we have total of 9 combinations for variogram ranges. They use 0, 20, and 50.
+rangeEvec = c(0.0000001, 4, 16) ## Variogram ranges for E
+rangeRvec = c(0.0000001, 4, 16) ## Variaogram ranges for R
+params <- expand.grid(rangeEvec, rangeRvec)
+# All combinations of variogram ranges.
+# For the future, we are going to add sampling designs in the params vectors.
+names(params) <- c('rangeE', 'rangeR')
+Results_total<-data.frame()## empty dataframe. Use this dataframe to add proportion later.
+for(i in 1:nrow(params)){
+  ## new dataframe for each function call.
+  Result <-SAT(Beta=0.3,
+                rangeE = params[i, 1],
+                rangeR = params[i, 2],
+                psill = 0.3,
+                Nsimulation =500,
+                Nrow = 100,
+                Ncol =100,
+                deterministic = "XYgradient",
+                Nsample = 100)
+  # create a dataframe that contains proportoin of errors or 
+  # powers(when beta is not 0) from each sampling design
+  Results <- data.frame(length(which(Result$Sampling_Random <0.05))/length(Result$Sampling_Random),
+                        length(which(Result$Sampling_Modified_Random<0.05))/length(which(!is.na(Result$Sampling_Modified_Random))),
+                        # length(which(Result$Sampling_Systematic <0.05))/length(Result$Sampling_Systematic),
+                        # length(which(Result$Sampling_Modified_Systematic<0.05))/length(which(!is.na(Result$Sampling_Modified_Systematic))),
+                        # length(which(Result$Sampling_Stratified <0.05))/length(Result$Sampling_Stratified),
+                        # length(which(Result$Sampling_ModifiedStratified <0.05))/length(which(!is.na(Result$Sampling_ModifiedStratified))),
+                        length(which(Result$Sampling_Vertical <0.05))/length(Result$Sampling_Vertical),
+                        length(which(Result$Sampling_Modified_Vertical <0.05))/length(which(!is.na(Result$Sampling_Modified_Vertical))),
+                        length(which(Result$Sampling_TwoVertical <0.05))/length(Result$Sampling_TwoVertical),
+                        length(which(Result$Sampling_ModifiedTwoVertical<0.05))/length(which(!is.na(Result$Sampling_ModifiedTwoVertical))),
+                        Result$rangeE,
+                        Result$rangeR
+                        )
+  ## Add new dataframe to total results
+  Results_total<-rbind(Results, Results_total)
+  print(i)
+}
+# name the data frame
+names(Results_total)[1] <- "Sampling_Random"
+names(Results_total)[2] <- "Sampling_Modified_Random"
+# names(Results_total)[3] <- "Sampling_Systematic"
+# names(Results_total)[4] <- "Sampling_Modified_Systematic"
+# names(Results_total)[5] <- "Sampling_Stratified"
+# names(Results_total)[6] <- "Sampling_Modified_Stratified"
+names(Results_total)[3] <- "Sampling_Vertical"
+names(Results_total)[4] <- "Sampling_Modified_Vertical"
+names(Results_total)[5] <- "Sampling_TwoVertical"
+names(Results_total)[6] <- "Sampling_Modified_TwoVertical"
+names(Results_total)[7] <- "rangeE"
+names(Results_total)[8] <- "rangeR"
+Results_total<-
+  Results_total %>%
+  pivot_longer(
+    cols = starts_with("Sampling"),
+    names_to = "Sampling",
+    values_to = "Proportion",
+    values_drop_na = TRUE
+  )
+# Proportion <- (SimSat1$Proportion+SimSat2$Proportion)/2
+# SimSat2$Proportion <- Proportion
+ggplot(data=Results_total, aes(x=rangeR, y=Proportion, group=Sampling,color = Sampling)) +
+  geom_line(aes(linetype=Sampling))+
+  geom_point()+
+  facet_grid(. ~ rangeE)
+```
+
